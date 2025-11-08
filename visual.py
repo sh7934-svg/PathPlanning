@@ -89,13 +89,12 @@ def idx_pos_in_list(curr_pos, nodes):
 def reconstruct_path(node, closed_list):
     path = [node.pos]
     parent = node.parent
+    print(type(parent))
 
     while parent is not None:
-        for n in closed_list:
-            if n.parent == parent:
-                path.append(n.pos)
-                parent = n.parent
-                break
+        path.append(parent.pos)
+        parent = node.parent
+
     path.reverse()
     return path
 
@@ -146,14 +145,15 @@ def Astar_vis(map, start, goal, img, fig):
 
             curr_neighbor_idx = idx_pos_in_list(curr_neighbor, open_list)
             if curr_neighbor_idx < 0:
-                open_list.append(Node(curr_neighbor, tent_g, goal, current_pos))
+                print(f'{type(current_node)}fjijfijifjisj')
+                open_list.append(Node(curr_neighbor, tent_g, goal, current_node))
                 if curr_neighbor != goal:
                     map[curr_neighbor] = 4
             elif tent_g >= open_list[curr_neighbor_idx].g:
                 continue
 
             open_list[curr_neighbor_idx].g = tent_g
-            open_list[curr_neighbor_idx].f = tent_g + abs_distance
+            open_list[curr_neighbor_idx].f = tent_g + open_list[curr_neighbor_idx].absolute_distance(goal)
             open_list[curr_neighbor_idx].parent = current_pos
 
         #visualization
