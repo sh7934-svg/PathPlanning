@@ -146,10 +146,10 @@ def Astar_vis(map, start, goal, img, fig):
 
             curr_neighbor_idx = idx_pos_in_list(curr_neighbor, open_list)
             if curr_neighbor_idx < 0:
-                open_list.append([curr_neighbor, tent_g, tent_g+abs_distance, current_pos])
+                open_list.append(Node(curr_neighbor, tent_g, goal, current_pos))
                 if curr_neighbor != goal:
                     map[curr_neighbor] = 4
-            elif tent_g >= open_list[curr_neighbor_idx][1]:
+            elif tent_g >= open_list[curr_neighbor_idx].g:
                 continue
 
             open_list[curr_neighbor_idx].g = tent_g
