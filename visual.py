@@ -4,6 +4,41 @@ import time
 
 bounds = (10, 8)
 
+class Node():
+    def __init__(self, pos, g, goal_pos, parent):
+        self.pos = pos
+        self.g = g
+        self.f = self.absolute_distance(goal_pos)
+        self.parent = parent
+
+    def get_neighbors_pos(self, map):
+        neighbors = [
+            (self.pos[0] - 1, self.pos[1]), (self.pos[0] + 1, self.pos[1]),
+            (self.pos[0], self.pos[1] - 1), (self.pos[0], self.pos[1] + 1), 
+            (self.pos[0] - 1, self.pos[1] - 1), (self.pos[0] + 1, self.pos[1] + 1), 
+            (self.pos[0] - 1, self.pos[1] + 1), (self.pos[0] + 1, self.pos[1] - 1), 
+        ]
+
+        idx = 0
+
+        while idx < len(neighbors):
+            current_neighbors = neighbors[idx]
+            if 0 > current_neighbors[0] or bounds[0] <= current_neighbors[0] or 0 > current_neighbors[1] or bounds[1] <= current_neighbors[1]:
+                neighbors.pop(idx)
+            elif map[current_neighbors] == 1:
+                neighbors.pop(idx)
+            else:
+                idx += 1
+
+        return neighbors
+    
+    def absolute_distance(self, goal_pos):
+        dx = self.pos[0] - goal_pos[0]
+        dy = self.pos[1] - goal_pos[1]
+        total_distance = np.sqrt(np.square(dx) + np.square(dy))
+        
+        return total_distance
+
 def gen_map_img(map):
 # 1 corresponds to obstacle so black
 # 2 corresponds to end so red
@@ -34,61 +69,32 @@ def gen_map_img(map):
                 map_img[i,j] = [1, 1, 1]
 
     return map_img
-    
-
-def get_neighbors(pos, map):
-    neighbors = [
-        (pos[0] - 1, pos[1]), (pos[0] + 1, pos[1]),
-        (pos[0], pos[1] - 1), (pos[0], pos[1] + 1), 
-        (pos[0] - 1, pos[1] - 1), (pos[0] + 1, pos[1] + 1), 
-        (pos[0] - 1, pos[1] + 1), (pos[0] + 1, pos[1] - 1), 
-    ]
-
-    idx = 0
-
-    while idx < len(neighbors):
-        current_neighbors = neighbors[idx]
-        if 0 > current_neighbors[0] or bounds[0] <= current_neighbors[0] or 0 > current_neighbors[1] or bounds[1] <= current_neighbors[1]:
-            neighbors.pop(idx)
-        elif map[current_neighbors] == 1:
-            neighbors.pop(idx)
-        else:
-            idx += 1
-
-    return neighbors
-
-def absolute_distance(curr_pos, goal_pos):
-    dx = curr_pos[0] - goal_pos[0]
-    dy = curr_pos[1] - goal_pos[1]
-    total_distance = np.sqrt(np.square(dx) + np.square(dy))
-    
-    return total_distance
 
 def find_lowest_index_f(nodes):
     lowest_index = 0
 
     for i in range(1, len(nodes)):
-        if nodes[i][2] < nodes[lowest_index][2]:
+        if nodes[i].f < nodes[lowest_index].f:
             lowest_index = i
     
     return lowest_index
 
 def idx_pos_in_list(curr_pos, nodes):
     for i in range(len(nodes)):
-        if nodes[i][0] == curr_pos:
+        if nodes[i].pos == curr_pos:
             return i
         
     return -1
 
 def reconstruct_path(node, closed_list):
-    path = [node[0]]
-    parent = node[3]
+    path = [node.pos]
+    parent = node.parent
 
     while parent is not None:
         for n in closed_list:
-            if n[0] == parent:
-                path.append(n[0])
-                parent = n[3]
+            if n.parent == parent:
+                path.append(n.pos)
+                parent = n.parent
                 break
     path.reverse()
     return path
@@ -96,16 +102,15 @@ def reconstruct_path(node, closed_list):
 def Astar_vis(map, start, goal, img, fig):
     fig.canvas.draw()          # Redraw the canvas
     fig.canvas.flush_events()
-
     #tuples in from ((x, y), g, h)
-    open_list = [[start, 0, absolute_distance(start, goal), None]]
+    open_list = [Node(start, 0, goal, None)]
     closed_list = []
     while open_list:
         time.sleep(0.1)
 
         current_index = find_lowest_index_f(open_list)
         current_node = open_list[current_index]
-        current_pos = open_list[current_index][0]
+        current_pos = open_list[current_index].pos
 
         if current_pos == goal:
             path = reconstruct_path(current_node, closed_list)
@@ -127,7 +132,7 @@ def Astar_vis(map, start, goal, img, fig):
 
         closed_list.append(open_list.pop(current_index))
 
-        neighbors = get_neighbors(current_pos, map)
+        neighbors = current_node.get_neighbors_pos(map)
 
         for i in range(len(neighbors)):
             curr_neighbor = neighbors[i]
@@ -135,19 +140,21 @@ def Astar_vis(map, start, goal, img, fig):
             if idx_pos_in_list(curr_neighbor, closed_list) >= 0:
                 continue
 
-            tent_g = current_node[1] + absolute_distance(current_pos, curr_neighbor)
+            abs_distance = current_node.absolute_distance(curr_neighbor)
+
+            tent_g = current_node.g + abs_distance
 
             curr_neighbor_idx = idx_pos_in_list(curr_neighbor, open_list)
             if curr_neighbor_idx < 0:
-                open_list.append([curr_neighbor, tent_g, tent_g+absolute_distance(curr_neighbor, goal), current_pos])
+                open_list.append([curr_neighbor, tent_g, tent_g+abs_distance, current_pos])
                 if curr_neighbor != goal:
                     map[curr_neighbor] = 4
             elif tent_g >= open_list[curr_neighbor_idx][1]:
                 continue
 
-            open_list[curr_neighbor_idx][1] = tent_g
-            open_list[curr_neighbor_idx][2] = tent_g + absolute_distance(curr_neighbor, goal)
-            open_list[curr_neighbor_idx][3] = current_pos
+            open_list[curr_neighbor_idx].g = tent_g
+            open_list[curr_neighbor_idx].f = tent_g + abs_distance
+            open_list[curr_neighbor_idx].parent = current_pos
 
         #visualization
         img.set_data(gen_map_img(map))
