@@ -93,7 +93,7 @@ def reconstruct_path(node, closed_list):
 
     while parent is not None:
         path.append(parent.pos)
-        parent = node.parent
+        parent = parent.parent
 
     path.reverse()
     return path
@@ -145,7 +145,6 @@ def Astar_vis(map, start, goal, img, fig):
 
             curr_neighbor_idx = idx_pos_in_list(curr_neighbor, open_list)
             if curr_neighbor_idx < 0:
-                print(f'{type(current_node)}fjijfijifjisj')
                 open_list.append(Node(curr_neighbor, tent_g, goal, current_node))
                 if curr_neighbor != goal:
                     map[curr_neighbor] = 4
@@ -154,7 +153,7 @@ def Astar_vis(map, start, goal, img, fig):
 
             open_list[curr_neighbor_idx].g = tent_g
             open_list[curr_neighbor_idx].f = tent_g + open_list[curr_neighbor_idx].absolute_distance(goal)
-            open_list[curr_neighbor_idx].parent = current_pos
+            open_list[curr_neighbor_idx].parent = current_node
 
         #visualization
         img.set_data(gen_map_img(map))
