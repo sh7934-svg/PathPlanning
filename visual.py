@@ -12,12 +12,19 @@ class Node():
         self.parent = parent
 
     def get_neighbors_pos(self, map):
-        neighbors = [
-            (self.pos[0] - 1, self.pos[1]), (self.pos[0] + 1, self.pos[1]),
-            (self.pos[0], self.pos[1] - 1), (self.pos[0], self.pos[1] + 1), 
-            (self.pos[0] - 1, self.pos[1] - 1), (self.pos[0] + 1, self.pos[1] + 1), 
-            (self.pos[0] - 1, self.pos[1] + 1), (self.pos[0] + 1, self.pos[1] - 1), 
-        ]
+        directions = {
+            (-1, 0), #up
+            (0,  1), #right
+            (1,  0), #down
+            (0, -1)  #left
+        }
+        
+        neighbors = []
+
+        for dx, dy in directions:
+            new_dx = self.pos[0] + dx
+            new_dy = self.pos[1] + dy
+            neighbors.append((new_dx, new_dy))
 
         idx = 0
 
