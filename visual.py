@@ -5,39 +5,51 @@ import time
 bounds = (10, 8)
 
 class Node():
-    def __init__(self, pos, g, goal_pos, parent):
+    def __init__(self, pos, g, goal_pos, parent, direct):
         self.pos = pos
         self.g = g
-        self.f = self.absolute_distance(goal_pos)
+        self.f = g + self.absolute_distance(goal_pos)
         self.parent = parent
+        self.direct = direct
 
-    def get_neighbors_pos(self, map):
-        directions = {
-            (-1, 0), #up
-            (0,  1), #right
-            (1,  0), #down
-            (0, -1)  #left
-        }
+        #0 up
+        #1 right
+        #2 down
+        #3 left
+
+    def get_neighbors_state(self, map):
+        #1 move forward
+        #2 turn right
+        #3 turn left
+
+        neighbor = []
+
+        #Forward
+
+        if self.direct == 0:
+            new_position = (self.pos[0] - 1, self.pos[1])
+        elif self.direct == 1:
+            new_position = (self.pos[0], self.pos[1] + 1)
+        elif self.direct == 2:
+            new_position = (self.pos[0] + 1, self.pos[1])
+        elif self.direct == 3:
+            new_position = (self.pos[0], self.pos[1] - 1)
         
-        neighbors = []
+        y = new_position[0]
+        x = new_position[1]
+        
+        if (0 <= y < bounds[0]) and (0 <= x < bounds[1]):
+            if (map[new_position] != 1):
+                neighbor.append((new_position, self.direct, 1))
+        
+        #Right
+        neighbor.append((self.pos, (self.direct + 1)%4, 1))
 
-        for dx, dy in directions:
-            new_dx = self.pos[0] + dx
-            new_dy = self.pos[1] + dy
-            neighbors.append((new_dx, new_dy))
+        #Left
+        neighbor.append((self.pos, (self.direct - 1)%4, 1))
 
-        idx = 0
+        return neighbor
 
-        while idx < len(neighbors):
-            current_neighbors = neighbors[idx]
-            if 0 > current_neighbors[0] or bounds[0] <= current_neighbors[0] or 0 > current_neighbors[1] or bounds[1] <= current_neighbors[1]:
-                neighbors.pop(idx)
-            elif map[current_neighbors] == 1:
-                neighbors.pop(idx)
-            else:
-                idx += 1
-
-        return neighbors
     
     def absolute_distance(self, goal_pos):
         dx = self.pos[0] - goal_pos[0]
@@ -86,81 +98,102 @@ def find_lowest_index_f(nodes):
     
     return lowest_index
 
-def idx_pos_in_list(curr_pos, nodes):
+def idx_pos_in_list(curr_pos, direction, nodes):
     for i in range(len(nodes)):
-        if nodes[i].pos == curr_pos:
+        if nodes[i].pos == curr_pos and nodes[i].direct == direction:
             return i
         
     return -1
 
 def reconstruct_path(node, closed_list):
-    path = [node.pos]
+    path = [(node.pos, node.direct)]
     parent = node.parent
     print(type(parent))
 
     while parent is not None:
-        path.append(parent.pos)
+        path.append((parent.pos, parent.direct))
         parent = parent.parent
 
     path.reverse()
     return path
 
-def Astar_vis(map, start, goal, img, fig):
+def draw_pointer(ax, pos, direction):
+    arrows = {
+        0: "↑",
+        1: "→",
+        2: "↓",
+        3: "←",
+    }
+
+    ax.text(pos[1], pos[0], arrows[direction], color="black", ha="center", va="center", fontsize=18, fontweight="bold")
+
+def reconstruct_path_visual(y_bound, x_bound, goal, start, path, map):
+        for h in range(y_bound):
+            for j in range(x_bound):
+                if map[h,j] == 4 or map[h,j] == 5:
+                    map[h,j] = 7
+        
+        for i in range(len(path)):
+            curr_node_pos = path[i][0]
+            curr_node_direct = path[i][1]
+            map[start] = 3
+            map[curr_node_pos] = 6
+            map[goal] = 2
+            draw_pointer(ax, curr_node_pos, curr_node_direct)
+            img.set_data(gen_map_img(map))
+            fig.canvas.draw()          # Redraw the canvas
+            fig.canvas.flush_events()
+
+def Astar_vis(map, start, goal, img, fig, ax):
     fig.canvas.draw()          # Redraw the canvas
     fig.canvas.flush_events()
     #tuples in from ((x, y), g, h)
-    open_list = [Node(start, 0, goal, None)]
+    open_list = [Node(start, 0, goal, None, 0)]
     closed_list = []
     while open_list:
-        time.sleep(0.1)
+        time.sleep(0.01)
 
         current_index = find_lowest_index_f(open_list)
         current_node = open_list[current_index]
         current_pos = open_list[current_index].pos
 
+        # Reached Goal
         if current_pos == goal:
+            total_cost = current_node.f
             path = reconstruct_path(current_node, closed_list)
-            for i in path:
-                map[i] = 6
-            for h in range(bounds[0]):
-                for j in range(bounds[1]):
-                    if map[h,j] == 4 or map[h,j] == 5:
-                        map[h,j] = 7
-            map[start] = 3
-            map[goal] = 2
-            img.set_data(gen_map_img(map))
-            fig.canvas.draw()          # Redraw the canvas
-            fig.canvas.flush_events()
-            return "Found Path"
+            reconstruct_path_visual(bounds[0], bounds[1], goal, start, path, map)
+            return f"Found Path. Total cost was {total_cost}"
         
         if current_pos is not start and current_pos is not goal:
             map[current_pos] = 5
 
         closed_list.append(open_list.pop(current_index))
 
-        neighbors = current_node.get_neighbors_pos(map)
+        neighbors = current_node.get_neighbors_state(map)
 
         for i in range(len(neighbors)):
-            curr_neighbor = neighbors[i]
+            curr_neighbor_pos = neighbors[i][0]
+            curr_neighbor_direct = neighbors[i][1]
+            curr_neighbor_cost = neighbors[i][2]
+            curr_neighbor_idx_closed = idx_pos_in_list(curr_neighbor_pos, curr_neighbor_direct, closed_list)
+            curr_neighbor_idx_open = idx_pos_in_list(curr_neighbor_pos, curr_neighbor_direct, open_list)
 
-            if idx_pos_in_list(curr_neighbor, closed_list) >= 0:
+            if curr_neighbor_idx_closed >= 0:
                 continue
 
-            abs_distance = current_node.absolute_distance(curr_neighbor)
+            tent_g = current_node.g + curr_neighbor_cost
 
-            tent_g = current_node.g + abs_distance
-
-            curr_neighbor_idx = idx_pos_in_list(curr_neighbor, open_list)
-            if curr_neighbor_idx < 0:
-                open_list.append(Node(curr_neighbor, tent_g, goal, current_node))
-                if curr_neighbor != goal:
-                    map[curr_neighbor] = 4
-            elif tent_g >= open_list[curr_neighbor_idx].g:
+            if curr_neighbor_idx_open < 0:
+                open_list.append(Node(curr_neighbor_pos, tent_g, goal, current_node, curr_neighbor_direct))
+                if curr_neighbor_pos != goal:
+                    map[curr_neighbor_pos] = 4
+            elif tent_g >= open_list[curr_neighbor_idx_open].g:
                 continue
 
-            open_list[curr_neighbor_idx].g = tent_g
-            open_list[curr_neighbor_idx].f = tent_g + open_list[curr_neighbor_idx].absolute_distance(goal)
-            open_list[curr_neighbor_idx].parent = current_node
+            open_list[curr_neighbor_idx_open].g = tent_g
+            open_list[curr_neighbor_idx_open].f = tent_g + open_list[curr_neighbor_idx_open].absolute_distance(goal)
+            open_list[curr_neighbor_idx_open].parent = current_node
+            open_list[curr_neighbor_idx_open].direct = curr_neighbor_direct
 
         #visualization
         img.set_data(gen_map_img(map))
@@ -173,7 +206,18 @@ def Astar_vis(map, start, goal, img, fig):
 target = (0, 7)
 start = (9, 0)
 
-obstacles = [(1, 3), (2, 0), (2, 1), (2, 3), (3,1), (3, 3), (4, 1), (4, 3), (5, 1), (6, 3)]
+obstacles = [
+    (0,0),
+    (1,1), (1,3), (1,4), (1,5),
+    (2,1), (2,5),
+    (3,1), (3,3), (3,5),
+    (4,3),
+    (5,1), (5,3), (5,5),
+    (6,1), (6,5),
+    (7,3),
+    (8,3), (8,4),
+    (9,6), (9,7)
+    ]
 
 map = np.zeros((10, 8))
 
@@ -188,7 +232,7 @@ plt.ion()
 fig, ax = plt.subplots()
 img = ax.imshow(gen_map_img(map)) # vmin/vmax for colormap scaling
 
-print(Astar_vis(map, start, target, img, fig))
+print(Astar_vis(map, start, target, img, fig, ax))
 
 plt.ioff() # Turn off interactive mode at the end
 plt.show() # Keep the final plot open (optional)
