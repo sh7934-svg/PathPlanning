@@ -105,10 +105,9 @@ def idx_pos_in_list(curr_pos, direction, nodes):
         
     return -1
 
-def reconstruct_path(node, closed_list):
+def reconstruct_path(node):
     path = [(node.pos, node.direct)]
     parent = node.parent
-    print(type(parent))
 
     while parent is not None:
         path.append((parent.pos, parent.direct))
@@ -128,6 +127,7 @@ def draw_pointer(ax, pos, direction):
     ax.text(pos[1], pos[0], arrows[direction], color="black", ha="center", va="center", fontsize=18, fontweight="bold")
 
 def reconstruct_path_visual(y_bound, x_bound, goal, start, path, map):
+        # Remove blue and gray blocks
         for h in range(y_bound):
             for j in range(x_bound):
                 if map[h,j] == 4 or map[h,j] == 5:
@@ -147,7 +147,7 @@ def reconstruct_path_visual(y_bound, x_bound, goal, start, path, map):
 def Astar_vis(map, start, goal, img, fig, ax):
     fig.canvas.draw()          # Redraw the canvas
     fig.canvas.flush_events()
-    #tuples in from ((x, y), g, h)
+    #tuples in from ((x, y), g, h, parent, direction)
     open_list = [Node(start, 0, goal, None, 0)]
     closed_list = []
     while open_list:
@@ -160,7 +160,7 @@ def Astar_vis(map, start, goal, img, fig, ax):
         # Reached Goal
         if current_pos == goal:
             total_cost = current_node.f
-            path = reconstruct_path(current_node, closed_list)
+            path = reconstruct_path(current_node)
             reconstruct_path_visual(bounds[0], bounds[1], goal, start, path, map)
             return f"Found Path. Total cost was {total_cost}"
         
@@ -171,6 +171,7 @@ def Astar_vis(map, start, goal, img, fig, ax):
 
         neighbors = current_node.get_neighbors_state(map)
 
+        # Check neighbors
         for i in range(len(neighbors)):
             curr_neighbor_pos = neighbors[i][0]
             curr_neighbor_direct = neighbors[i][1]
@@ -178,18 +179,24 @@ def Astar_vis(map, start, goal, img, fig, ax):
             curr_neighbor_idx_closed = idx_pos_in_list(curr_neighbor_pos, curr_neighbor_direct, closed_list)
             curr_neighbor_idx_open = idx_pos_in_list(curr_neighbor_pos, curr_neighbor_direct, open_list)
 
+            # Check if curr_neighbor is in closed_list
             if curr_neighbor_idx_closed >= 0:
                 continue
 
+            # Update g
             tent_g = current_node.g + curr_neighbor_cost
 
+            # Add new_neighbor
             if curr_neighbor_idx_open < 0:
                 open_list.append(Node(curr_neighbor_pos, tent_g, goal, current_node, curr_neighbor_direct))
                 if curr_neighbor_pos != goal:
                     map[curr_neighbor_pos] = 4
+            
+            # Check if new_g is worse
             elif tent_g >= open_list[curr_neighbor_idx_open].g:
                 continue
 
+            # Shorter path found
             open_list[curr_neighbor_idx_open].g = tent_g
             open_list[curr_neighbor_idx_open].f = tent_g + open_list[curr_neighbor_idx_open].absolute_distance(goal)
             open_list[curr_neighbor_idx_open].parent = current_node
