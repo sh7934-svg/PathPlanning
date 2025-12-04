@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import time
+import heapq
 
 bounds = (10, 8)
 
@@ -40,6 +41,7 @@ class Node():
         
         if (0 <= y < bounds[0]) and (0 <= x < bounds[1]):
             if (map[new_position] != 1):
+                #pos, direction, cost
                 neighbor.append((new_position, self.direct, 1))
         
         #Right
@@ -50,7 +52,6 @@ class Node():
 
         return neighbor
 
-    
     def absolute_distance(self, goal_pos):
         dx = self.pos[0] - goal_pos[0]
         dy = self.pos[1] - goal_pos[1]
@@ -100,9 +101,10 @@ def find_lowest_index_f(nodes):
 
 def idx_pos_in_list(curr_pos, direction, nodes):
     for i in range(len(nodes)):
-        if nodes[i].pos == curr_pos and nodes[i].direct == direction:
+        f, c, node = nodes[i]
+        if node.pos == curr_pos and node.direct == direction:
             return i
-        
+    
     return -1
 
 def reconstruct_path(node):
@@ -147,15 +149,18 @@ def reconstruct_path_visual(y_bound, x_bound, goal, start, path, map):
 def Astar_vis(map, start, goal, img, fig, ax):
     fig.canvas.draw()          # Redraw the canvas
     fig.canvas.flush_events()
-    #tuples in from ((x, y), g, h, parent, direction)
-    open_list = [Node(start, 0, goal, None, 0)]
+    #tuples in from ((x, y), g, goal, parent, direction)
+    initial_node = Node(start, 0, goal, None, 0)
+    initial_f = initial_node.f
+    open_list = []
     closed_list = []
+    counter = 0
+    heapq.heappush(open_list, (initial_f, counter, initial_node))
     while open_list:
         time.sleep(0.01)
-
-        current_index = find_lowest_index_f(open_list)
-        current_node = open_list[current_index]
-        current_pos = open_list[current_index].pos
+        current_tuple = heapq.heappop(open_list)
+        current_node = current_tuple[2]
+        current_pos = current_node.pos
 
         # Reached Goal
         if current_pos == goal:
@@ -167,7 +172,7 @@ def Astar_vis(map, start, goal, img, fig, ax):
         if current_pos is not start and current_pos is not goal:
             map[current_pos] = 5
 
-        closed_list.append(open_list.pop(current_index))
+        closed_list.append(current_tuple)
 
         neighbors = current_node.get_neighbors_state(map)
 
@@ -185,22 +190,29 @@ def Astar_vis(map, start, goal, img, fig, ax):
 
             # Update g
             tent_g = current_node.g + curr_neighbor_cost
-
+            neighbor_node = Node(curr_neighbor_pos, tent_g, goal, current_node, curr_neighbor_direct)
+            tent_f = neighbor_node.g + neighbor_node.absolute_distance(goal)
             # Add new_neighbor
             if curr_neighbor_idx_open < 0:
-                open_list.append(Node(curr_neighbor_pos, tent_g, goal, current_node, curr_neighbor_direct))
+                counter += 1
+                heapq.heappush(open_list, (tent_f, counter, Node(curr_neighbor_pos, tent_g, goal, current_node, curr_neighbor_direct)))
                 if curr_neighbor_pos != goal:
                     map[curr_neighbor_pos] = 4
+                continue
             
             # Check if new_g is worse
-            elif tent_g >= open_list[curr_neighbor_idx_open].g:
+            elif tent_g >= open_list[curr_neighbor_idx_open][2].g:
                 continue
 
+            old_f, old_c, old_node = open_list[curr_neighbor_idx_open]
+
             # Shorter path found
-            open_list[curr_neighbor_idx_open].g = tent_g
-            open_list[curr_neighbor_idx_open].f = tent_g + open_list[curr_neighbor_idx_open].absolute_distance(goal)
-            open_list[curr_neighbor_idx_open].parent = current_node
-            open_list[curr_neighbor_idx_open].direct = curr_neighbor_direct
+            old_node.g = tent_g
+            old_node.f = tent_f
+            old_node.parent = current_node
+            old_node.direct = curr_neighbor_direct
+            open_list[curr_neighbor_idx_open] = (old_node.f, old_c, old_node)
+            heapq.heapify(open_list)
 
         #visualization
         img.set_data(gen_map_img(map))
